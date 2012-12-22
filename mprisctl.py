@@ -1,5 +1,27 @@
 #!/usr/bin/python2
 # encoding=utf-8
+"""
+This script can be used to control an mpris-implementing player from the
+command line. Many players can, if properly installed, also be started
+using this script.
+
+I recommend running qdbusviewer to find out the dbus name of your
+player. Just type mpris in the filter field of qdbusviewer while your
+player is running, and it should show up there as suffix to
+org.mpris.MediaPlayer. in the left panel. If it doesn't, your player
+does not support mpris. Maybe there is a plugin for this though, make
+sure to have a look! You'll need the suffix after the last dot as player
+name.
+
+While the player is running, you don't need to specify a player name at
+all _if_ no other player is running. In that case, it's undefined which
+player the command will be sent to if you don't select a player at the
+command line interface.
+
+Using -a requires setting a player, because taking a guess would be not
+the thing to do in my opinion (“Refuse the temptation to guess”).
+"""
+
 from __future__ import print_function
 import dbus
 import argparse
