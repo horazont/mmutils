@@ -46,6 +46,8 @@ def get_player(bus, player=None, allow_activate=False):
             if name.startswith("org.mpris.MediaPlayer2."):
                 logging.debug("picked player {0}".format(name))
                 return bus.get_object(name, "/org/mpris/MediaPlayer2")
+        else:
+            raise KeyError(None)
     else:
         logging.info("specific player passed, looking for matching name")
         names = bus.list_names() if not allow_activate else bus.list_activatable_names()
@@ -183,6 +185,8 @@ line.""")
     try:
         obj = get_player(bus, args.player, args.activate)
     except KeyError as err:
+        if err.args[0] is None:
+            print("Unable to find any running mpris player", file=sys.stderr)
         if args.activate:
             print("Player {} isn't available on this system (or not available for activation (hi banshee!))".format(err), file=sys.stderr)
         else:
