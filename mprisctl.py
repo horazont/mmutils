@@ -187,7 +187,7 @@ line.""")
     except KeyError as err:
         if err.args[0] is None:
             print("Unable to find any running mpris player", file=sys.stderr)
-        if args.activate:
+        elif args.activate:
             print("Player {} isn't available on this system (or not available for activation (hi banshee!))".format(err), file=sys.stderr)
         else:
             print("Player {} isn't running (you might want to try -a)".format(err), file=sys.stderr)
