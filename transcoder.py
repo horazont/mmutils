@@ -215,10 +215,10 @@ class DirectoryFilter(Task):
 
 class Encoder(Task):
     comment_re = re.compile("^\s*comment\[[0-9]+\]: ([^=]+)=(.+)$")
-    output_directory = None
 
-    def __init__(self, flac_file, **kwargs):
+    def __init__(self, flac_file, output_directory, **kwargs):
         super().__init__(**kwargs)
+        self.output_directory = output_directory
         self.flac_file = flac_file
         self.weight = os.stat(flac_file).st_size
 
@@ -240,8 +240,6 @@ class Encoder(Task):
         return comments
 
 class OpusEncoder(Encoder):
-    output_directory = os.path.expanduser("~/Opus-Music")
-
     def __call__(self):
         comments = self._get_metadata()
         return OpusEncoderHandle(
@@ -341,7 +339,7 @@ class Scheduler:
 def task_generator(transcoders, **kwargs):
     def generator(filepath):
         for transcoder in transcoders:
-            yield transcoder(filepath, **kwargs)
+            yield encoders[transcoder[0]](filepath, transcoder[1], **kwargs)
     return generator
 
 def scan_dir(directory, heartbeat, task_generator):
@@ -383,11 +381,23 @@ if __name__ == "__main__":
             raise ValueError("Must be a positive integer number.")
         return x
 
+    class ValidateTranscoders(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            if values[0] not in encoders.keys():
+                raise argparse.ArgumentError(
+                        self, "invalid choice: '{value}' (choose from {encoders})".format(
+                            value=values[0],
+                            encoders=", ".join("'%s'" % (x) for x in encoders.keys())
+                    ))
+            namespace.transcoders.append(values)
+            setattr(namespace, self.dest, namespace.transcoders)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-x", "--transcode",
-        choices=encoders.keys(),
-        action="append",
+        metavar=('ENCODER', 'OUTPUT_DIR'),
+        action=ValidateTranscoders,
+        nargs=2,
         default=[],
         help="Encoder to apply to the flac files. Can be specified multiple times to apply multiple encoders. At least one transcoder must be given.",
         dest="transcoders"
@@ -449,7 +459,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.WARNING)
 
     task_generator = task_generator(
-        list(map(encoders.__getitem__, args.transcoders)),
+        args.transcoders,
         dry_run=args.dry_run,
         skip_existing=args.skip_existing
     )
