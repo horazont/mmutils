@@ -338,8 +338,8 @@ class Scheduler:
 
 def task_generator(transcoders, **kwargs):
     def generator(filepath):
-        for transcoder in transcoders:
-            yield encoders[transcoder[0]](filepath, transcoder[1], **kwargs)
+        for transcoder_cls, output_dir in transcoders:
+            yield transcoder_cls(filepath, output_dir, **kwargs)
     return generator
 
 def scan_dir(directory, heartbeat, task_generator):
@@ -383,13 +383,16 @@ if __name__ == "__main__":
 
     class ValidateTranscoders(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
-            if values[0] not in encoders.keys():
+            transcoder, output_dir = values
+            try:
+                transcoder_class = encoders[transcoder]
+            except KeyError:
                 raise argparse.ArgumentError(
                         self, "invalid choice: '{value}' (choose from {encoders})".format(
                             value=values[0],
                             encoders=", ".join("'%s'" % (x) for x in encoders.keys())
                     ))
-            namespace.transcoders.append(values)
+            namespace.transcoders.append((transcoder_class, output_dir))
             setattr(namespace, self.dest, namespace.transcoders)
 
     parser = argparse.ArgumentParser()
