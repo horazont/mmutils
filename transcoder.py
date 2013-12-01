@@ -234,6 +234,7 @@ class OpusEncoderHandle(PipeEncoderHandle):
 class Task(metaclass=abc.ABCMeta):
     def __init__(self, *args, **kwargs):
         super().__init__()
+        self._args = args
         self._kwargs = kwargs
 
     @abc.abstractmethod
@@ -251,8 +252,8 @@ class DirectoryFilter(Task):
 class Encoder(Task):
     comment_re = re.compile("^\s*comment\[[0-9]+\]: ([^=]+)=(.+)$")
 
-    def __init__(self, flac_file, output_directory, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, flac_file, output_directory, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.output_directory = output_directory
         self.flac_file = flac_file
         self.weight = os.stat(flac_file).st_size
