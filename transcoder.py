@@ -147,42 +147,45 @@ class EncoderHandle(SubprocessHandle):
         )
         return in_pipe_process
 
-class OpusEncoderHandle(EncoderHandle):
-    def __init__(self, flac_file, comments, output_directory,
+class PipeEncoderHandle(EncoderHandle):
+    class OutFileToken:
+        __init__ = None
+
+    @staticmethod
+    def replace_token(token, substitute):
+        def replacer(item):
+            return substitute if item is token else item
+        return replacer
+
+    def __init__(self,
+            flac_file,
+            command_template,
+            output_directory,
+            suffix,
             skip_existing=False,
             weight=0,
             **kwargs):
-        comment_list = []
-        for key, value in comments.items():
-            comment_list.append("--comment")
-            comment_list.append("{0}={1}".format(key, value))
 
-        out_file = self._ensure_output_file(flac_file, output_directory, "opus")
+        out_file = self._ensure_output_file(flac_file, output_directory, suffix)
         if os.path.isfile(out_file) and skip_existing:
             logging.info("skipping existing file: %s", out_file)
             self.skip_init()
             self.weight = 0
             return
 
+        command = list(map(
+            self.replace_token(self.OutFileToken, out_file),
+            command_template))
+
         in_pipe = self._get_flac_decoder(flac_file, **kwargs)
         try:
             super().__init__(
-                [
-                    "opusenc",
-                    "--bitrate", "128",
-                    "--vbr",
-                ] + comment_list + [
-                    "-",
-                    out_file
-                ],
+                command,
                 stdin=in_pipe.stdout,
                 stdout=devnull,
-                stderr=devnull,
                 weight=weight,
-                **kwargs
-            )
+                **kwargs)
         except:
-            # kill the pipe on error
             in_pipe.kill()
             raise
         self.in_pipe = in_pipe
@@ -192,12 +195,44 @@ class OpusEncoderHandle(EncoderHandle):
         if not self.weight:
             return
         logging.info("terminating transcoder for %s", self.out_file)
-        self.in_pipe.kill()
-        self.kill()
+        self.in_pipe.term()
+        super().term()
         os.unlink(self.out_file)
 
-class Task:
-    def __init__(self, **kwargs):
+    def kill(self):
+        if not self.weight:
+            return
+        logging.info("killing transcoder for %s", self.out_file)
+        self.in_pipe.kill()
+        super().kill()
+        os.unlink(self.out_file)
+
+class OpusEncoderHandle(PipeEncoderHandle):
+    def __init__(self, flac_file, comments, output_directory, mode,
+            skip_existing=False,
+            weight=0,
+            complexity=10,
+            bitrate=None,
+            **kwargs):
+        comment_list = []
+        for key, value in comments.items():
+            comment_list.append("--comment")
+            comment_list.append("{0}={1}".format(key, value))
+
+        command_template = ["opusenc"]
+        command_template.append("--bitrate")
+        command_template.append("128")
+        command_template.append("--vbr")
+        command_template.extend(comment_list)
+        command_template.append("-")
+        command_template.append(self.OutFileToken)
+
+        super().__init__(
+            flac_file, command_template, output_directory, "opus",
+            skip_existing=skip_existing, weight=weight, **kwargs)
+
+class Task(metaclass=abc.ABCMeta):
+    def __init__(self, *args, **kwargs):
         super().__init__()
         self._kwargs = kwargs
 
