@@ -249,7 +249,7 @@ class DirectoryFilter(Task):
         self.directory = directory
         self.reinject_callback = reinject_callback
 
-class Encoder(Task):
+class Encoder(Task, metaclass=abc.ABCMeta):
     comment_re = re.compile("^\s*comment\[[0-9]+\]: ([^=]+)=(.+)$")
 
     def __init__(self, flac_file, output_directory, *args, **kwargs):
@@ -257,6 +257,14 @@ class Encoder(Task):
         self.output_directory = output_directory
         self.flac_file = flac_file
         self.weight = os.stat(flac_file).st_size
+
+    @abc.abstractclassmethod
+    def _get_encoder_handle_class(cls):
+        pass
+
+    @abc.abstractclassmethod
+    def _get_encoder_mnemonic(cls):
+        pass
 
     def _get_metadata(self):
         output = subprocess.check_output([
@@ -275,19 +283,31 @@ class Encoder(Task):
                 comments[g[0]] = g[1]
         return comments
 
-class OpusEncoder(Encoder):
     def __call__(self):
         comments = self._get_metadata()
-        return OpusEncoderHandle(
+        return self._get_encoder_handle_class()(
             self.flac_file,
             comments,
             self.output_directory,
+            *self._args,
             weight=self.weight,
             **self._kwargs
         )
 
     def __repr__(self):
-        return "<encode {0!r} to opus>".format(self.flac_file)
+        return "<encode {!r} to {}>".format(
+            self.flac_file,
+            self._get_encoder_mnemonic())
+
+class OpusEncoder(Encoder):
+    @classmethod
+    def _get_encoder_handle_class(cls):
+        return OpusEncoderHandle
+
+    @classmethod
+    def _get_encoder_mnemonic(cls):
+        return "opus"
+
 
 
 encoders = {
