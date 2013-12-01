@@ -232,6 +232,28 @@ class OpusEncoderHandle(PipeEncoderHandle):
             flac_file, command_template, output_directory, "opus",
             skip_existing=skip_existing, weight=weight, **kwargs)
 
+class VorbisEncoderHandle(PipeEncoderHandle):
+    def __init__(self, flac_file, comments, output_directory, mode,
+            skip_existing=False,
+            weight=0,
+            **kwargs):
+        comment_list = []
+        for key, value in comments.items():
+            comment_list.append("--comment={0}={1}".format(key, value))
+
+        command_template = ["oggenc"]
+        command_template.extend(mode.to_args())
+        command_template.append("--utf8")
+        command_template.extend(comment_list)
+        command_template.append("-Q")
+        command_template.append("-")
+        command_template.append("-o")
+        command_template.append(self.OutFileToken)
+
+        super().__init__(
+            flac_file, command_template, output_directory, "ogg",
+            skip_existing=skip_existing, weight=weight, **kwargs)
+
 class Task(metaclass=abc.ABCMeta):
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -335,10 +357,46 @@ class OpusEncoder(Encoder):
     def _get_encoder_mnemonic(cls):
         return "opus"
 
+class VorbisEncoder(Encoder):
+    class Mode:
+        __init__ = None
 
+        class Bitrate:
+            def __init__(self, bitrate, managed=False):
+                self._bitrate = int(bitrate)
+                self._managed = managed
+
+            def to_args(self):
+                result = ["--bitrate", "{:d}".format(self._bitrate)]
+                if self._managed:
+                    result.append("--managed")
+                return result
+
+        class Quality:
+            def __init__(self, quality):
+                self._quality = quality
+
+            def to_args(self):
+                return ["-q", "{:.2f}".format(self._quality)]
+
+    def __init__(self, flac_file, output_directory,
+            mode=Mode.Quality(6),
+            **kwargs):
+        super().__init__(flac_file, output_directory, mode, **kwargs)
+
+    @classmethod
+    def _get_encoder_handle_class(cls):
+        return VorbisEncoderHandle
+
+    @classmethod
+    def _get_encoder_mnemonic(cls):
+        return "oggvorbis"
 
 encoders = {
     "opus": OpusEncoder,
+    "vorbis": VorbisEncoder,
+    "ogg": VorbisEncoder,
+    "ogg+vorbis": VorbisEncoder
 }
 
 dir_filters = {
