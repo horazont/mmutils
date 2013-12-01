@@ -220,9 +220,10 @@ class OpusEncoderHandle(PipeEncoderHandle):
             comment_list.append("{0}={1}".format(key, value))
 
         command_template = ["opusenc"]
-        command_template.append("--bitrate")
-        command_template.append("128")
-        command_template.append("--vbr")
+        if bitrate is not None:
+            command_template.append("--bitrate")
+            command_template.append("{.1f}".format(bitrate))
+        command_template.extend(mode.to_args())
         command_template.extend(comment_list)
         command_template.append("-")
         command_template.append(self.OutFileToken)
@@ -300,6 +301,32 @@ class Encoder(Task, metaclass=abc.ABCMeta):
             self._get_encoder_mnemonic())
 
 class OpusEncoder(Encoder):
+    class Mode:
+        __init__ = None
+
+        class _Bitrate:
+            def __init__(self, bitrate=None):
+                self._bitrate = bitrate
+
+            def _to_args(self):
+                if self._bitrate is not None:
+                    return ["--bitrate", "{:.1f}".format(self._bitrate)]
+                else:
+                    return []
+
+        class VBR(_Bitrate):
+            def to_args(self):
+                return super()._to_args() + ["--vbr"]
+
+        class cVBR(_Bitrate):
+            def to_args(self):
+                return super()._to_args() + ["--cvbr"]
+
+    def __init__(self, flac_file, output_directory,
+            mode=Mode.VBR(128),
+            **kwargs):
+        super().__init__(flac_file, output_directory, mode, **kwargs)
+
     @classmethod
     def _get_encoder_handle_class(cls):
         return OpusEncoderHandle
