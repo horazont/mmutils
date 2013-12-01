@@ -88,9 +88,9 @@ class SubprocessHandle(TaskHandle, subprocess.Popen):
         self.stdout = DummySubprocess.stdout
 
     def __init__(self, cmdline, *args, dry_run=False, **kwargs):
+        logging.debug("$ %s", cmdline)
         if dry_run:
             # that'll be funny :)
-            logging.debug("$ %s", cmdline)
             self.skip_init()
         else:
             super().__init__(cmdline, *args, **kwargs)
