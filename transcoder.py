@@ -125,7 +125,7 @@ class EncoderHandle(SubprocessHandle):
 
     @staticmethod
     def _ensure_output_file(flac_file, output_directory, extension):
-        new_name = os.path.splitext(flac_file)[0] + "." + extension
+        new_name = "./" + os.path.splitext(flac_file)[0] + "." + extension
         out_file = os.path.join(output_directory, new_name)
         out_dir = os.path.dirname(out_file)
         if not os.path.isdir(out_dir):
